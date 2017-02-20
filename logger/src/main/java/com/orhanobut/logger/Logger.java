@@ -47,7 +47,7 @@ public final class Logger {
     }
 
     public static void d(String message, Object... args) {
-        printer.d(message, args);
+        printer.d(true, message, args);
     }
 
     public static void e(String message, Object... args) {
@@ -55,24 +55,84 @@ public final class Logger {
     }
 
     public static void e(Throwable throwable, String message, Object... args) {
-        printer.e(throwable, message, args);
+        printer.e(true, throwable, message, args);
     }
 
     public static void i(String message, Object... args) {
-        printer.i(message, args);
+        printer.i(true, message, args);
     }
 
     public static void v(String message, Object... args) {
-        printer.v(message, args);
+        printer.v(true, message, args);
     }
 
     public static void w(String message, Object... args) {
-        printer.w(message, args);
+        printer.w(true, message, args);
     }
 
     public static void wtf(String message, Object... args) {
-        printer.wtf(message, args);
+        printer.wtf(true, message, args);
     }
+
+	/**
+	 * single line
+	 */
+	public static void d(String tag, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.d(false, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
+
+	/**
+	 * single line
+	 */
+	public static void e(String tag, Throwable throwable, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.e(false, throwable, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
+
+	/**
+	 * single line
+	 */
+	public static void i(String tag, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.i(false, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
+
+	/**
+	 * single line
+	 */
+	public static void v(String tag, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.v(false, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
+
+	/**
+	 * single line
+	 */
+	public static void w(String tag, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.w(false, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
+
+	/**
+	 * single line
+	 */
+	public static void wtf(String tag, String message) {
+		String tmp = LoggerPrinter.TAG;
+		Logger.init(tag).setMethodCount(1);
+		printer.wtf(false, message, new Object(){});
+		Logger.init(tmp).setMethodCount(2);
+	}
 
     /**
      * Formats the json content and print it

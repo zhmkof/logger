@@ -9,19 +9,19 @@ public interface Printer {
 
     Settings init(String tag);
 
-    void d(String message, Object... args);
+    void d(boolean multiLines, String message, Object... args);
 
     void e(String message, Object... args);
 
-    void e(Throwable throwable, String message, Object... args);
+    void e(boolean multiLines, Throwable throwable, String message, Object... args);
 
-    void w(String message, Object... args);
+    void w(boolean multiLines, String message, Object... args);
 
-    void i(String message, Object... args);
+    void i(boolean multiLines, String message, Object... args);
 
-    void v(String message, Object... args);
+    void v(boolean multiLines, String message, Object... args);
 
-    void wtf(String message, Object... args);
+    void wtf(boolean multiLines, String message, Object... args);
 
     void json(String json);
 

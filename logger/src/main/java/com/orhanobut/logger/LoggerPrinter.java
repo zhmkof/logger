@@ -49,23 +49,10 @@ final class LoggerPrinter implements Printer {
     private static final Settings settings = new Settings();
 
     /**
-     * Drawing toolbox
-     */
-    private static final char TOP_LEFT_CORNER = '╔';
-    private static final char BOTTOM_LEFT_CORNER = '╚';
-    private static final char MIDDLE_CORNER = '╟';
-    private static final char HORIZONTAL_DOUBLE_LINE = '║';
-    private static final String DOUBLE_DIVIDER = "════════════════════════════════════════════";
-    private static final String SINGLE_DIVIDER = "────────────────────────────────────────────";
-    private static final String TOP_BORDER = TOP_LEFT_CORNER + DOUBLE_DIVIDER + DOUBLE_DIVIDER;
-    private static final String BOTTOM_BORDER = BOTTOM_LEFT_CORNER + DOUBLE_DIVIDER + DOUBLE_DIVIDER;
-    private static final String MIDDLE_BORDER = MIDDLE_CORNER + SINGLE_DIVIDER + SINGLE_DIVIDER;
-
-    /**
      * TAG is used for the Log, the name is a little different
      * in order to differentiate the logs easily with the filter
      */
-    private static String TAG = "PRETTYLOGGER";
+    protected static String TAG = "DefaultTagName";
 
     /**
      * Localize single tag and method count for each thread
@@ -100,8 +87,8 @@ final class LoggerPrinter implements Printer {
     }
 
     @Override
-    public void d(String message, Object... args) {
-        log(Log.DEBUG, message, args);
+    public void d(boolean multiLines, String message, Object... args) {
+        log(multiLines, Log.DEBUG, message, args);
     }
 
     @Override
@@ -110,7 +97,7 @@ final class LoggerPrinter implements Printer {
     }
 
     @Override
-    public void e(Throwable throwable, String message, Object... args) {
+    public void e(boolean multiLines, Throwable throwable, String message, Object... args) {
         if (throwable != null && message != null) {
             message += " : " + throwable.toString();
         }
@@ -120,27 +107,27 @@ final class LoggerPrinter implements Printer {
         if (message == null) {
             message = "No message/exception is set";
         }
-        log(Log.ERROR, message, args);
+        log(multiLines, Log.ERROR, message, args);
     }
 
     @Override
-    public void w(String message, Object... args) {
-        log(Log.WARN, message, args);
+    public void w(boolean multiLines, String message, Object... args) {
+        log(multiLines, Log.WARN, message, args);
     }
 
     @Override
-    public void i(String message, Object... args) {
-        log(Log.INFO, message, args);
+    public void i(boolean multiLines, String message, Object... args) {
+        log(multiLines, Log.INFO, message, args);
     }
 
     @Override
-    public void v(String message, Object... args) {
-        log(Log.VERBOSE, message, args);
+    public void v(boolean multiLines, String message, Object... args) {
+        log(multiLines, Log.VERBOSE, message, args);
     }
 
     @Override
-    public void wtf(String message, Object... args) {
-        log(Log.ASSERT, message, args);
+    public void wtf(boolean multiLines, String message, Object... args) {
+        log(multiLines, Log.ASSERT, message, args);
     }
 
     /**
@@ -151,20 +138,20 @@ final class LoggerPrinter implements Printer {
     @Override
     public void json(String json) {
         if (TextUtils.isEmpty(json)) {
-            d("Empty/Null json content");
+            d(true, "Empty/Null json content");
             return;
         }
         try {
             if (json.startsWith("{")) {
                 JSONObject jsonObject = new JSONObject(json);
                 String message = jsonObject.toString(JSON_INDENT);
-                d(message);
+                d(true, message);
                 return;
             }
             if (json.startsWith("[")) {
                 JSONArray jsonArray = new JSONArray(json);
                 String message = jsonArray.toString(JSON_INDENT);
-                d(message);
+                d(true, message);
             }
         } catch (JSONException e) {
             e(e.getCause().getMessage() + "\n" + json);
@@ -179,7 +166,7 @@ final class LoggerPrinter implements Printer {
     @Override
     public void xml(String xml) {
         if (TextUtils.isEmpty(xml)) {
-            d("Empty/Null xml content");
+            d(true, "Empty/Null xml content");
             return;
         }
         try {
@@ -189,7 +176,7 @@ final class LoggerPrinter implements Printer {
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
             transformer.transform(xmlInput, xmlOutput);
-            d(xmlOutput.getWriter().toString().replaceFirst(">", ">\n"));
+            d(true, xmlOutput.getWriter().toString().replaceFirst(">", ">\n"));
         } catch (TransformerException e) {
             e(e.getCause().getMessage() + "\n" + xml);
         }
@@ -198,51 +185,71 @@ final class LoggerPrinter implements Printer {
     /**
      * This method is synchronized in order to avoid messy of logs' order.
      */
-    private synchronized void log(int logType, String msg, Object... args) {
+    private synchronized void log(boolean multiLines, int logType, String msg, Object... args) {
         if (settings.getLogLevel() == LogLevel.NONE) {
             return;
         }
+
         String tag = getTag();
-        String message = createMessage(msg, args);
         int methodCount = getMethodCount();
+		String message = createMessage(msg, args);
+		byte[] bytes = message.getBytes();
+		int length = bytes.length;
 
-        logTopBorder(logType, tag);
-        logHeaderContent(logType, tag, methodCount);
-
-        //get bytes of message with system's default charset (which is UTF-8 for Android)
-        byte[] bytes = message.getBytes();
-        int length = bytes.length;
-        if (length <= CHUNK_SIZE) {
-            if (methodCount > 0) {
-                logDivider(logType, tag);
-            }
-            logContent(logType, tag, message);
-            logBottomBorder(logType, tag);
-            return;
-        }
-        if (methodCount > 0) {
-            logDivider(logType, tag);
-        }
-        for (int i = 0; i < length; i += CHUNK_SIZE) {
-            int count = Math.min(length - i, CHUNK_SIZE);
-            //create a new String with system's default charset (which is UTF-8 for Android)
-            logContent(logType, tag, new String(bytes, i, count));
-        }
-        logBottomBorder(logType, tag);
+		if (multiLines) {
+			logHeaderContent(logType, tag, methodCount);
+			//get bytes of message with system's default charset (which is UTF-8 for Android)
+			if (length <= CHUNK_SIZE) {
+				logContent(logType, tag, message);
+				return;
+			}
+			for (int i = 0; i < length; i += CHUNK_SIZE) {
+				int count = Math.min(length - i, CHUNK_SIZE);
+				//create a new String with system's default charset (which is UTF-8 for Android)
+				logContent(logType, tag, new String(bytes, i, count));
+			}
+		} else {
+			String header = logHeaderContent(methodCount);
+			String full = header + message;
+			logContent(logType, tag, full);
+		}
     }
 
-    private void logTopBorder(int logType, String tag) {
-        logChunk(logType, tag, TOP_BORDER);
-    }
+	private String logHeaderContent(int methodCount) {
+		StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+		int stackOffset = getStackOffset(trace);
+
+		//corresponding method count with the current stack may exceeds the stack trace. Trims the count
+		if (methodCount + stackOffset > trace.length) {
+			methodCount = trace.length - stackOffset - 1;
+		}
+
+		StringBuilder builder = new StringBuilder();
+		String level = "";
+		for (int i = methodCount; i > 0; i--) {
+			int stackIndex = i + stackOffset;
+			if (stackIndex >= trace.length) {
+				continue;
+			}
+			builder.append(level)
+					.append("(")
+					.append(trace[stackIndex].getFileName())
+					.append(":")
+					.append(trace[stackIndex].getLineNumber())
+					.append(")")
+//					.append(getSimpleClassName(trace[stackIndex].getClassName()))
+					.append("=>")
+					.append(trace[stackIndex].getMethodName())
+					.append(" | Thread: ")
+					.append(Thread.currentThread().getName())
+					.append(" | ");
+			level += "   ";
+		}
+		return builder.toString();
+	}
 
     private void logHeaderContent(int logType, String tag, int methodCount) {
         StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-        if (settings.isShowThreadInfo()) {
-            logChunk(logType, tag, HORIZONTAL_DOUBLE_LINE + " Thread: " + Thread.currentThread().getName());
-            logDivider(logType, tag);
-        }
-        String level = "";
-
         int stackOffset = getStackOffset(trace);
 
         //corresponding method count with the current stack may exceeds the stack trace. Trims the count
@@ -250,40 +257,35 @@ final class LoggerPrinter implements Printer {
             methodCount = trace.length - stackOffset - 1;
         }
 
+		StringBuilder builder;
+		String level = "";
         for (int i = methodCount; i > 0; i--) {
+			builder = new StringBuilder();
             int stackIndex = i + stackOffset;
             if (stackIndex >= trace.length) {
                 continue;
             }
-            StringBuilder builder = new StringBuilder();
-            builder.append("║ ")
-                    .append(level)
-                    .append(getSimpleClassName(trace[stackIndex].getClassName()))
-                    .append(".")
+            builder.append(level)
+					.append("(")
+					.append(trace[stackIndex].getFileName())
+					.append(":")
+					.append(trace[stackIndex].getLineNumber())
+					.append(")")
+//					.append(getSimpleClassName(trace[stackIndex].getClassName()))
+                    .append("=>")
                     .append(trace[stackIndex].getMethodName())
-                    .append(" ")
-                    .append(" (")
-                    .append(trace[stackIndex].getFileName())
-                    .append(":")
-                    .append(trace[stackIndex].getLineNumber())
-                    .append(")");
+					.append(" | Thread: ")
+					.append(Thread.currentThread().getName())
+					.append(" | ");
             level += "   ";
             logChunk(logType, tag, builder.toString());
         }
     }
 
-    private void logBottomBorder(int logType, String tag) {
-        logChunk(logType, tag, BOTTOM_BORDER);
-    }
-
-    private void logDivider(int logType, String tag) {
-        logChunk(logType, tag, MIDDLE_BORDER);
-    }
-
     private void logContent(int logType, String tag, String chunk) {
         String[] lines = chunk.split(System.getProperty("line.separator"));
         for (String line : lines) {
-            logChunk(logType, tag, HORIZONTAL_DOUBLE_LINE + " " + line);
+            logChunk(logType, tag, line);
         }
     }
 
@@ -311,11 +313,6 @@ final class LoggerPrinter implements Printer {
                 Log.d(finalTag, chunk);
                 break;
         }
-    }
-
-    private String getSimpleClassName(String name) {
-        int lastIndex = name.lastIndexOf(".");
-        return name.substring(lastIndex + 1);
     }
 
     private String formatTag(String tag) {
